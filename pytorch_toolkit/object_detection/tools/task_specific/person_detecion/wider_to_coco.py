@@ -94,7 +94,7 @@ def convert_wider_annotation(ann_file, out_file, merge_all_person_categories):
                 'category_id': gt_bbox[4],
                 'iscrowd': 0,
                 'area': gt_bbox[2] * gt_bbox[3],
-                'bbox': gt_bbox
+                'bbox': gt_bbox[:4]
             }
             ann_id += 1
             annotations.append(ann)
