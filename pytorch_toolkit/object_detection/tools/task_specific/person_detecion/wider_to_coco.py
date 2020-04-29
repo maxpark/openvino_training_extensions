@@ -28,7 +28,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description='Convert dataset')
     parser.add_argument('input_annotation',
-                        help="Path to annotation file like wider_face_train_bbx_gt.txt")
+                        help="Path to annotation file like train.txt or val.txt")
     parser.add_argument('output_annotation', help="Path to output json file")
     parser.add_argument('--merge_all_person_categories', action='store_true',
                         help='To merge pedestrians, riders and partially-visible persons and '
