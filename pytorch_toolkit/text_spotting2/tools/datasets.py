@@ -35,14 +35,11 @@ class TextOnlyCocoAnnotation:
         self.annotation = {
             "type": "instances",
             "images": [],
-            "categories": [],
+            "categories": sorted([{"supercategory": "none", "name": key, "id": value}
+                                  for key, value in self.label_map.items()],
+                                 key=lambda x: x["id"]),
             "annotations": [],
         }
-        self.annotation['categories'] = [{"supercategory": "none", "name": key, "id": value}
-                                         for key, value in self.label_map.items()]
-
-        self.annotation['categories'] = sorted(self.annotation['categories'],
-                                               key=lambda x: x["id"])
 
         if path is not None:
             assert os.path.exists(path), path
@@ -83,7 +80,7 @@ class TextOnlyCocoAnnotation:
             "bbox": obj['bbox'],  # x, y, w, h
             "segmentation": obj['segmentation'],
             "text": obj['text'],
-
+            # "characters": obj['characters'],
             "ignore": 0,
             "id": new_ann_id,
             "image_id": self.img_path_2_img_id[image_path],
@@ -231,7 +228,7 @@ class ICDAR2013DatasetConverter:
         assert ymin < ymax
         transcription = (sep.join(line[4:]))[1:-1]
         word_annotation = {
-            'bbox': [xmin, ymin, xmax - xmin + 1, ymax - ymin + 1],
+            'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
             'segmentation': [[xmin, ymin, xmax, ymin, xmax, ymax, xmin, ymax]],
             'text': {
                 'transcription': transcription,
@@ -275,7 +272,7 @@ class ICDAR2015DatasetConverter:
         ymax = max(quadrilateral[1::2])
 
         word_annotation = {
-            'bbox': [xmin, ymin, xmax - xmin + 1, ymax - ymin + 1],
+            'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
             'segmentation': [quadrilateral],
             'text': {
                 'transcription': transcription,
@@ -355,7 +352,7 @@ class ICDAR2017MLTDatasetConverter:
         ymax = max(quadrilateral[1::2])
 
         word_annotation = {
-            'bbox': [xmin, ymin, xmax - xmin + 1, ymax - ymin + 1],
+            'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
             'segmentation': [quadrilateral],
             'text': {
                 'transcription': transcription,
@@ -485,7 +482,7 @@ class ICDAR2019MLTDatasetConverter:
         ymax = max(quadrilateral[1::2])
 
         word_annotation = {
-            'bbox': [xmin, ymin, xmax - xmin + 1, ymax - ymin + 1],
+            'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
             'segmentation': [quadrilateral],
             'text': {
                 'transcription': transcription,
@@ -586,7 +583,7 @@ class ICDAR2019ARTDatasetConverter:
             language = ''
 
         word_annotation = {
-            'bbox': [xmin, ymin, xmax - xmin + 1, ymax - ymin + 1],
+            'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
             'segmentation': [quadrilateral],
             'text': {
                 'transcription': transcription,
@@ -653,7 +650,7 @@ class MSRATD500DatasetConverter:
         ymax = max(quadrilateral[1::2])
 
         word_annotation = {
-            'bbox': [xmin, ymin, xmax - xmin + 1, ymax - ymin + 1],
+            'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
             'segmentation': [quadrilateral],
             'text': {
                 'transcription': '',
@@ -715,7 +712,7 @@ class COCOTextDatasetConverter:
         ymax = max(quadrilateral[1::2])
 
         word_annotation = {
-            'bbox': [xmin, ymin, xmax - xmin + 1, ymax - ymin + 1],
+            'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
             'segmentation': [quadrilateral],
             'text': {
                 'transcription': text,
