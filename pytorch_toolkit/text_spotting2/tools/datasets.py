@@ -16,6 +16,7 @@
 
 import copy
 import json
+import logging
 import os
 from collections import defaultdict
 
@@ -80,7 +81,6 @@ class TextOnlyCocoAnnotation:
             "bbox": obj['bbox'],  # x, y, w, h
             "segmentation": obj['segmentation'],
             "text": obj['text'],
-            # "characters": obj['characters'],
             "ignore": 0,
             "id": new_ann_id,
             "image_id": self.img_path_2_img_id[image_path],
@@ -140,6 +140,12 @@ class TextOnlyCocoAnnotation:
                 contours = contours.reshape([contours.shape[0], contours.shape[1] // 2, 2])
 
                 cv2.drawContours(image, contours, 0, color, 1)
+
+                if 'chars' in obj['text']:
+                    for char in obj['text']['chars']:
+                        cv2.rectangle(image, tuple(char['bbox'][0:2]), tuple(char['bbox'][2:4]), color)
+                        if put_text:
+                            cv2.putText(image, char['char'], tuple(char['bbox'][0:2]), 1, 1.0, color)
             try:
                 if image.shape[1] > max_image_size[0] or image.shape[0] > max_image_size[1]:
                     print('resized')
@@ -191,14 +197,16 @@ class TextOnlyCocoAnnotation:
 class ICDAR2013DatasetConverter:
     """ Class for conversion of ICDAR2013 to TextOnlyCocoAnnotation. """
 
-    def __init__(self, images_folder, annotations_folder, is_train, root=''):
+    def __init__(self, images_folder, annotations_folder, character_annotations_folder, is_train, root=''):
         self.images_folder = images_folder
         self.annotations_folder = annotations_folder
+        self.characters_annotations_folder = character_annotations_folder
         self.is_train = is_train
 
         if root:
             self.annotations_folder = os.path.join(root, self.annotations_folder)
             self.images_folder = os.path.join(root, self.images_folder)
+            self.characters_annotations_folder = os.path.join(root, self.characters_annotations_folder)
 
     def __call__(self, *args, **kwargs):
         dataset = TextOnlyCocoAnnotation()
@@ -206,15 +214,49 @@ class ICDAR2013DatasetConverter:
         begin, end = (100, 328 + 1) if self.is_train else (1, 233 + 1)
         gt_format = 'gt_{}.txt' if self.is_train else 'gt_img_{}.txt'
         img_format = '{}.jpg' if self.is_train else 'img_{}.jpg'
+        char_gt_format = '{}_GT.txt'
 
         for i in range(begin, end):
             image_path = os.path.join(self.images_folder, img_format.format(i))
             annotation_path = os.path.join(self.annotations_folder, gt_format.format(i))
 
             with open(annotation_path, encoding='utf-8-sig') as read_file:
-                for line in [line.strip() for line in read_file.readlines()]:
+                if self.characters_annotations_folder:
+                    char_annotation_path = os.path.join(self.characters_annotations_folder, char_gt_format.format(i))
+                    with open(char_annotation_path) as f:
+                        content = f.readlines()
+                        content = ''.join(content)
+                        content = content.split('\n\n')
+                        characters = [line.split('\n') for line in content if not line.strip().startswith('#')]
+                for i, line in enumerate([line.strip() for line in read_file.readlines()]):
                     image_size = imagesize.get(image_path)
-                    dataset.add_bbox(image_path, image_size, self.parse_line(line))
+                    obj = self.parse_line(line)
+                    if self.characters_annotations_folder:
+
+                        obj['text']['chars'] = []
+                        for chars in characters[i]:
+                            if not chars:
+                                continue
+                            chars = chars.split(' ')
+                            bbox = [int(x) for x in chars[5:9]]
+                            char = ' '.join(chars[9:])
+                            if len(char) == 3 and char[0] == char[-1] == '"':
+                                char = char[1]
+                            if char == ' ':
+                                continue
+                            assert len(char) == 1, f'char = "{char}"'
+                            obj['text']['chars'].append({
+                                'bbox': bbox,
+                                'char': char
+                            })
+                        united_chars = ''.join([x['char'] for x in obj['text']['chars']])
+                        if united_chars != obj['text']['transcription']:
+                            logging.warning(f"Transcription of {obj['text']['transcription']} in {annotation_path} "
+                                            f"has been changed to {united_chars}."
+                                            f"It is known error in original annotation.")
+                            obj['text']['transcription'] = united_chars
+
+                    dataset.add_bbox(image_path, image_size, obj)
 
         return dataset
 
