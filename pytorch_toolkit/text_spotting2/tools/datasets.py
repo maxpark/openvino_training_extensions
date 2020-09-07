@@ -216,8 +216,14 @@ class ICDAR2013DatasetConverter:
         img_format = '{}.jpg' if self.is_train else 'img_{}.jpg'
         char_gt_format = '{}_GT.txt'
 
+        ignore_indexes = [140]
+
         for i in range(begin, end):
+            if i in ignore_indexes:
+                continue
+
             image_path = os.path.join(self.images_folder, img_format.format(i))
+            image_size = imagesize.get(image_path)
             annotation_path = os.path.join(self.annotations_folder, gt_format.format(i))
 
             with open(annotation_path, encoding='utf-8-sig') as read_file:
@@ -229,8 +235,8 @@ class ICDAR2013DatasetConverter:
                         content = content.split('\n\n')
                         characters = [line.split('\n') for line in content if not line.strip().startswith('#')]
                 for i, line in enumerate([line.strip() for line in read_file.readlines()]):
-                    image_size = imagesize.get(image_path)
                     obj = self.parse_line(line)
+
                     if self.characters_annotations_folder:
 
                         obj['text']['chars'] = []

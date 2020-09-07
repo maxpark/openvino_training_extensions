@@ -1,0 +1,11 @@
+[
+  {
+    "name": "ICDAR2013DatasetConverter",
+    "kwargs": {
+      "images_folder": "icdar2013/Challenge2_Training_Task12_Images",
+      "annotations_folder": "icdar2013/Challenge2_Training_Task1_GT",
+      "character_annotations_folder": "icdar2013/Challenge2_Training_Task2_GT",
+      "is_train": true
+    }
+  }
+]
