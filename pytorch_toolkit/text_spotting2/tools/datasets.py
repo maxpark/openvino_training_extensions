@@ -26,6 +26,23 @@ import numpy as np
 from tqdm import tqdm
 
 
+def box2poly(box):
+    x, y, w, h = box
+    return [x, y, x + w, y, x + w, y + h, x, y + h]
+
+
+def poly2box(poly):
+    xs = poly[0::2]
+    ys = poly[1::2]
+    xmin = min(xs)
+    xmax = max(xs)
+
+    ymin = min(ys)
+    ymax = max(ys)
+
+    return [xmin, ymin, xmax - xmin, ymax - ymin]
+
+
 class TextOnlyCocoAnnotation:
     """ Class for working with MSCOCO-like annotation for text. """
 
@@ -143,7 +160,8 @@ class TextOnlyCocoAnnotation:
 
                 if 'chars' in obj['text']:
                     for char in obj['text']['chars']:
-                        cv2.rectangle(image, tuple(char['bbox'][0:2]), tuple(char['bbox'][2:4]), color)
+                        bbox = char['bbox']
+                        cv2.rectangle(image, (bbox[0], bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]), color)
                         if put_text:
                             cv2.putText(image, char['char'], tuple(char['bbox'][0:2]), 1, 1.0, color)
             try:
@@ -245,6 +263,8 @@ class ICDAR2013DatasetConverter:
                                 continue
                             chars = chars.split(' ')
                             bbox = [int(x) for x in chars[5:9]]
+                            bbox[2] -= bbox[0]
+                            bbox[3] -= bbox[1]
                             char = ' '.join(chars[9:])
                             if len(char) == 3 and char[0] == char[-1] == '"':
                                 char = char[1]
@@ -253,6 +273,7 @@ class ICDAR2013DatasetConverter:
                             assert len(char) == 1, f'char = "{char}"'
                             obj['text']['chars'].append({
                                 'bbox': bbox,
+                                'segmentation': box2poly(bbox),
                                 'char': char
                             })
                         united_chars = ''.join([x['char'] for x in obj['text']['chars']])
@@ -797,6 +818,99 @@ class COCOTextDatasetConverter:
         return dataset
 
 
+class TotalTextConverter:
+
+    def __init__(self, images_folder, annotations_folder, root=''):
+        self.annotations_folder = annotations_folder
+        self.images_folder = images_folder
+
+        if root:
+            self.annotations_folder = os.path.join(root, self.annotations_folder)
+            self.images_folder = os.path.join(root, self.images_folder)
+
+    def __call__(self):
+        from scipy.io import loadmat
+        dataset = TextOnlyCocoAnnotation()
+
+        for image_name in os.listdir(self.images_folder):
+            image_path = os.path.join(self.images_folder, image_name)
+            ann_name = 'gt_' + image_name.split('.')[0] + '.mat'
+            mat = loadmat(os.path.join(self.annotations_folder, ann_name))
+            for m in mat['gt']:
+                xs = np.array(m[1][0]).reshape(-1, 1)
+                ys = np.array(m[3][0]).reshape(-1, 1)
+                poly = [int(x) for x in np.concatenate([xs, ys], axis=1).reshape(-1)]
+                text = m[4][0]
+
+                if text == '#':
+                    continue
+
+                word_annotation = {
+                    'bbox': poly2box(poly),
+                    'segmentation': [poly],
+                    'text': {
+                        'transcription': text,
+                        'legible': 1,
+                        'language': 'english',
+                    }
+                }
+
+                dataset.add_bbox(image_path, imagesize.get(image_path), word_annotation)
+
+        return dataset
+
+
+class ScutEngChar:
+
+    def __init__(self, images_folder, annotations_folder, root=''):
+        self.images_folder = images_folder
+        self.annotations_folder = annotations_folder
+
+        if root:
+            self.images_folder = os.path.join(root, self.images_folder)
+            self.annotations_folder = os.path.join(root, self.annotations_folder)
+
+    def __call__(self):
+
+        dataset = TextOnlyCocoAnnotation()
+
+        for image_name in os.listdir(self.images_folder)[:1]:
+            ann_name = image_name + '.txt'
+            ann_path = os.path.join(self.annotations_folder, ann_name)
+            image_path = os.path.join(self.images_folder, image_name)
+            image_size = imagesize.get(image_path)
+
+            with open(ann_path) as f:
+                content = [line.strip().split(',') for line in f.readlines()]
+                for line in content:
+                    assert len(line) % 9 == 0
+                    word_polygon = [int(float(x)) for x in line[0:8]]
+                    word_annotation = {
+                        'bbox': poly2box(word_polygon),
+                        'segmentation': [word_polygon],
+                        'text': {
+                            'transcription': line[8],
+                            'legible': 1,
+                            'language': 'english',
+                            'chars': []
+                        }
+                    }
+                    for i in range(1, len(line) // 9):
+                        b, e = i * 9, (i + 1) * 9
+                        char_polygon = [int(float(x)) for x in line[b:e - 1]]
+                        char = line[e - 1]
+                        word_annotation['text']['chars'].append(
+                            {
+                                'bbox': poly2box(char_polygon),
+                                'segmentation': [char_polygon],
+                                'char': char
+                            }
+                        )
+                    dataset.add_bbox(image_path, image_size, word_annotation)
+
+        return dataset
+
+
 str_to_class = {
     'ICDAR2013DatasetConverter': ICDAR2013DatasetConverter,
     'ICDAR2015DatasetConverter': ICDAR2015DatasetConverter,
@@ -804,5 +918,7 @@ str_to_class = {
     'ICDAR2019MLTDatasetConverter': ICDAR2019MLTDatasetConverter,
     'ICDAR2019ARTDatasetConverter': ICDAR2019ARTDatasetConverter,
     'MSRATD500DatasetConverter': MSRATD500DatasetConverter,
-    'COCOTextDatasetConverter': COCOTextDatasetConverter
+    'COCOTextDatasetConverter': COCOTextDatasetConverter,
+    'TotalTextConverter': TotalTextConverter,
+    'ScutEngChar': ScutEngChar
 }

@@ -7,5 +7,27 @@
       "character_annotations_folder": "icdar2013/Challenge2_Training_Task2_GT",
       "is_train": true
     }
+  },
+  {
+    "name": "ICDAR2015DatasetConverter",
+    "kwargs": {
+      "images_folder": "icdar2015/ch4_training_images",
+      "annotations_folder": "icdar2015/ch4_training_localization_transcription_gt",
+      "is_train": true
+    }
+  },
+  {
+    "name": "TotalTextConverter",
+    "kwargs": {
+      "images_folder": "totaltext/Images/Train",
+      "annotations_folder": "totaltext/Annotations/Train"
+    }
+  },
+  {
+    "name": "ScutEngChar",
+    "kwargs": {
+      "images_folder": "scut-eng-char/train_images",
+      "annotations_folder": "scut-eng-char/train_gts"
+    }
   }
 ]
