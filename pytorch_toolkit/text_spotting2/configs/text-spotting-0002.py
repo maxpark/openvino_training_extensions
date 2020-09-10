@@ -12,33 +12,25 @@ model = dict(
         norm_eval=True,
         style='pytorch'),
     neck=dict(
-        type='FPN',
+        type='FusedFPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
-        num_outs=5),
+        num_outs=4,
+        upscale_factors=[1, 2, 4, 8],
+        upscale_channels=64),
     rpn_head=dict(
-        type='RPNHead',
+        type='SPNHead',
         in_channels=256,
         feat_channels=256,
-        anchor_generator=dict(
-            type='AnchorGenerator',
-            scales=[8],
-            ratios=[0.5, 1.0, 2.0],
-            strides=[4, 8, 16, 32, 64]),
-        bbox_coder=dict(
-            type='DeltaXYWHBBoxCoder',
-            target_means=[.0, .0, .0, .0],
-            target_stds=[1.0, 1.0, 1.0, 1.0]),
-        loss_cls=dict(
-            type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
-        loss_bbox=dict(type='L1Loss', loss_weight=1.0)),
+        loss_mask=dict(
+            type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)),
     roi_head=dict(
         type='StandardRoIHead',
         bbox_roi_extractor=dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', out_size=7, sample_num=0),
             out_channels=256,
-            featmap_strides=[4, 8, 16, 32]),
+            featmap_strides=[4]),
         bbox_head=dict(
             type='Shared2FCBBoxHead',
             in_channels=256,
@@ -57,7 +49,7 @@ model = dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', out_size=14, sample_num=0),
             out_channels=256,
-            featmap_strides=[4, 8, 16, 32]),
+            featmap_strides=[4]),
         mask_head=dict(
             type='FCNMaskHead',
             num_convs=4,
@@ -124,7 +116,7 @@ test_cfg = dict(
         mask_thr_binary=0.5))
 
 dataset_type = 'CocoDataset'
-data_root = '/home/ikrylov/data/text_spotting2/'
+data_root = '/media/ikrylov/datasets/text_spotting2/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
