@@ -32,6 +32,7 @@ def parse_args():
     args.add_argument('--output', help='Path where to save annotation (json).',
                       required=True)
     args.add_argument('--visualize', action='store_true', help='Visualize annotation.')
+    args.add_argument('--shuffle', action='store_true', help='Shuffle annotation before visualization.')
     args.add_argument('--delay', type=int, default=1)
     return args.parse_args()
 
@@ -57,7 +58,7 @@ def main():
 
     ann = TextOnlyCocoAnnotation(args.output, os.path.dirname(args.output))
     if args.visualize:
-        ann.visualize(put_text=True, imshow_delay=args.delay)
+        ann.visualize(put_text=True, imshow_delay=args.delay, shuffle=args.shuffle)
 
 
 if __name__ == '__main__':

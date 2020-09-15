@@ -132,12 +132,17 @@ class TextOnlyCocoAnnotation:
     def _check_object_consistency(obj):
         assert obj['iscrowd'] == 1 - obj['text']['legible']
 
-    def visualize(self, put_text, imshow_delay=1):
+    def visualize(self, put_text, imshow_delay=1, shuffle=False):
         """ Visualizes annotation using cv2.imshow from OpenCV. Press `Esc` to exit. """
 
         max_image_size = 1280, 768
 
-        for frame in tqdm(self.annotation['images']):
+        images = list(self.annotation['images'])
+        if shuffle:
+            import random
+            random.shuffle(images)
+
+        for frame in tqdm(images):
             image_path = frame['file_name']
             image = cv2.imread(image_path)
             for ann_id in self.img_id_2_ann_id[frame['id']]:
@@ -215,7 +220,7 @@ class TextOnlyCocoAnnotation:
 class ICDAR2013DatasetConverter:
     """ Class for conversion of ICDAR2013 to TextOnlyCocoAnnotation. """
 
-    def __init__(self, images_folder, annotations_folder, character_annotations_folder, is_train, root=''):
+    def __init__(self, images_folder, annotations_folder, character_annotations_folder='', is_train=True, root=''):
         self.images_folder = images_folder
         self.annotations_folder = annotations_folder
         self.characters_annotations_folder = character_annotations_folder
@@ -224,7 +229,8 @@ class ICDAR2013DatasetConverter:
         if root:
             self.annotations_folder = os.path.join(root, self.annotations_folder)
             self.images_folder = os.path.join(root, self.images_folder)
-            self.characters_annotations_folder = os.path.join(root, self.characters_annotations_folder)
+            if character_annotations_folder:
+                self.characters_annotations_folder = os.path.join(root, self.characters_annotations_folder)
 
     def __call__(self, *args, **kwargs):
         dataset = TextOnlyCocoAnnotation()
@@ -631,21 +637,22 @@ class ICDAR2019ARTDatasetConverter:
         assert os.path.exists(os.path.join(self.folder, 'train_labels.json'))
 
     @staticmethod
-    def parse_line(dict):
+    def parse_line(obj):
         """ Parses line of ICDAR2019ART annotation. """
         quadrilateral = []
-        for point in dict['points']:
+        for point in obj['points']:
             quadrilateral += point
         xmin = min(quadrilateral[0::2])
         xmax = max(quadrilateral[0::2])
 
         ymin = min(quadrilateral[1::2])
         ymax = max(quadrilateral[1::2])
-        assert xmin < xmax
-        assert ymin < ymax
-        language = dict['language'].lower()
-        legibility = 1 - int(dict['illegibility'])
-        transcription = dict['transcription']
+        if not (xmin < xmax and ymin < ymax):
+            logging.warn(f"skip: {obj}")
+            return None
+        language = obj['language'].lower()
+        legibility = 1 - int(obj['illegibility'])
+        transcription = obj['transcription']
         if transcription == '###':
             transcription = ''
             legibility = 0
@@ -678,7 +685,9 @@ class ICDAR2019ARTDatasetConverter:
 
                 word_annotations = []
                 for instance in annotations[image]:
-                    word_annotations.append(self.parse_line(instance))
+                    obj = self.parse_line(instance)
+                    if obj:
+                        word_annotations.append(obj)
 
                 should_add = not self.is_latin_required
                 if self.is_latin_required:

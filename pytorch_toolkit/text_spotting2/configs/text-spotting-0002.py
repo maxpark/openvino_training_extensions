@@ -23,7 +23,7 @@ model = dict(
         in_channels=256,
         feat_channels=256,
         loss_mask=dict(
-            type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)),
+            type='DiceLoss', loss_weight=1.0)),
     roi_head=dict(
         type='StandardRoIHead',
         bbox_roi_extractor=dict(
@@ -113,7 +113,8 @@ test_cfg = dict(
         score_thr=0.05,
         nms=dict(type='nms', iou_thr=0.5),
         max_per_img=100,
-        mask_thr_binary=0.5))
+        mask_thr_binary=0.5),
+    score_thr=0.005)
 
 dataset_type = 'CocoDataset'
 data_root = '/media/ikrylov/datasets/text_spotting2/'
@@ -122,7 +123,7 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
-    dict(type='Resize', img_scale=(480, 480), keep_ratio=False),
+    dict(type='Resize', img_scale=(704, 704), keep_ratio=False),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -133,7 +134,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(480, 480),
+        img_scale=(704, 704),
         flip=False,
         transforms=[
             dict(type='Resize', keep_ratio=False),
@@ -145,7 +146,7 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=4,
+    samples_per_gpu=8,
     workers_per_gpu=2,
     train=dict(
         type='RepeatDataset',
@@ -155,25 +156,25 @@ data = dict(
             ann_file=data_root + 'train.json',
             img_prefix=data_root,
             classes=('text', ),
-            min_size=32,
+            min_size=0,
             pipeline=train_pipeline)
         ),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'train.json',
+        ann_file=data_root + 'icdar2013_test.json',
         img_prefix=data_root,
         classes=('text',),
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'train.json',
+        ann_file=data_root + 'icdar2013_test.json',
         img_prefix=data_root,
         classes=('text',),
         pipeline=test_pipeline))
 
-evaluation = dict(metric=['bbox', 'segm'])
+evaluation = dict(metric=['bbox', 'segm', 'f1'])
 # optimizer
-optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(
