@@ -78,6 +78,33 @@ class TextOnlyCocoAnnotation:
             assert index == img['id']
             self.img_path_2_img_id[img['file_name']] = index
 
+    @staticmethod
+    def fit_box_in_image(box, image_size):
+        width, height = image_size
+        x, y, w, h = box
+        adjusted = False
+        if x + w > width:
+            adjusted = True
+            w = width - x
+        if y + h > height:
+            adjusted = True
+            h = height - y
+        if x < 0:
+            adjusted = True
+            w += x
+            x = 0
+        if y < 0:
+            adjusted = True
+            h += y
+            y = 0
+        if 0 <= x < x + w <= width and 0 <= y < y + h <= height:
+            if adjusted:
+                logging.warn(f'Changed invalid box: from {box} to {x, y, w, h} because of image size {image_size}')
+            return x, y, w, h
+        else:
+            logging.warn(f'Skip invalid box: {box} that can not be fit in {image_size}')
+            return None
+
     def add_bbox(self, image_path, image_size, obj):
         """ Adds new text object to annotation. """
 
@@ -93,18 +120,19 @@ class TextOnlyCocoAnnotation:
 
         new_ann_id = len(self.annotation['annotations'])
         self.img_id_2_ann_id[self.img_path_2_img_id[image_path]].append(new_ann_id)
-        self.annotation['annotations'].append({
-
-            "bbox": obj['bbox'],  # x, y, w, h
-            "segmentation": obj['segmentation'],
-            "text": obj['text'],
-            "ignore": 0,
-            "id": new_ann_id,
-            "image_id": self.img_path_2_img_id[image_path],
-            "area": obj['bbox'][2] * obj['bbox'][3],
-            "iscrowd": 1 - int(obj['text']['legible']),
-            "category_id": self.label_map['text']
-        })
+        bbox = self.fit_box_in_image(obj['bbox'], image_size)
+        if bbox:
+            self.annotation['annotations'].append({
+                "bbox": bbox,  # x, y, w, h
+                "segmentation": obj['segmentation'],
+                "text": obj['text'],
+                "ignore": 0,
+                "id": new_ann_id,
+                "image_id": self.img_path_2_img_id[image_path],
+                "area": obj['bbox'][2] * obj['bbox'][3],
+                "iscrowd": 1 - int(obj['text']['legible']),
+                "category_id": self.label_map['text']
+            })
 
     def __iadd__(self, other):
 
@@ -131,6 +159,16 @@ class TextOnlyCocoAnnotation:
     @staticmethod
     def _check_object_consistency(obj):
         assert obj['iscrowd'] == 1 - obj['text']['legible']
+
+    def check_objects_inside(self):
+        for frame in tqdm(self.annotation['images']):
+            image_path = frame['file_name']
+            image_size = imagesize.get(image_path)
+            for ann_id in self.img_id_2_ann_id[frame['id']]:
+                obj = self.annotation['annotations'][ann_id]
+                bbox = obj['bbox']
+                assert 0 <= bbox[0] < bbox[0] + bbox[2] < image_size[0] and 0 <= bbox[1] < bbox[1] + bbox[3] < image_size[1], f'{image_path} {bbox}'
+
 
     def visualize(self, put_text, imshow_delay=1, shuffle=False):
         """ Visualizes annotation using cv2.imshow from OpenCV. Press `Esc` to exit. """
@@ -445,7 +483,7 @@ class ICDAR2017MLTDatasetConverter:
         n_images = 7200
         for i in range(1, n_images + 1):
             added = False
-            for extension in ['jpg', 'png', 'gif']:
+            for extension in ['jpg', 'png']:
                 image_path = os.path.join(self.folder,
                                           f'ch8_training_images_{(i - 1) // 1000 + 1}',
                                           f'img_{i}.{extension}')
@@ -470,7 +508,7 @@ class ICDAR2017MLTDatasetConverter:
         n_images = 1800
         for i in range(1, n_images + 1):
             added = False
-            for extension in ['jpg', 'png', 'gif']:
+            for extension in ['jpg', 'png']:
                 image_path = os.path.join(self.folder,
                                           'ch8_validation_images',
                                           f'img_{i}.{extension}')
@@ -829,9 +867,10 @@ class COCOTextDatasetConverter:
 
 class TotalTextConverter:
 
-    def __init__(self, images_folder, annotations_folder, root=''):
+    def __init__(self, images_folder, annotations_folder, is_train=True, root=''):
         self.annotations_folder = annotations_folder
         self.images_folder = images_folder
+        self.is_train = is_train
 
         if root:
             self.annotations_folder = os.path.join(root, self.annotations_folder)
@@ -844,8 +883,11 @@ class TotalTextConverter:
         for image_name in os.listdir(self.images_folder):
             image_path = os.path.join(self.images_folder, image_name)
             ann_name = 'gt_' + image_name.split('.')[0] + '.mat'
+            if not self.is_train:
+                ann_name = 'poly_' + ann_name
             mat = loadmat(os.path.join(self.annotations_folder, ann_name))
-            for m in mat['gt']:
+            key = 'gt' if self.is_train else 'polygt'
+            for m in mat[key]:
                 xs = np.array(m[1][0]).reshape(-1, 1)
                 ys = np.array(m[3][0]).reshape(-1, 1)
                 poly = [int(x) for x in np.concatenate([xs, ys], axis=1).reshape(-1)]

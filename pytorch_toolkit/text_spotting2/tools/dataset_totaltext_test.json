@@ -1,0 +1,10 @@
+[
+    {
+        "name": "TotalTextConverter",
+        "kwargs": {
+            "images_folder": "totaltext/Images/Test",
+            "annotations_folder": "totaltext/Annotations/Test",
+            "is_train": false
+        }
+    }
+]
