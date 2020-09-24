@@ -1,6 +1,6 @@
 # model settings
 model = dict(
-    type='MaskRCNN',
+    type='MaskTextSpotter',
     pretrained='torchvision://resnet50',
     backbone=dict(
         type='ResNet',
@@ -33,7 +33,7 @@ model = dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
         loss_bbox=dict(type='L1Loss', loss_weight=1.0)),
     roi_head=dict(
-        type='StandardRoIHead',
+        type='StandardRoIHeadWithText',
         bbox_roi_extractor=dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', out_size=7, sample_num=0),
@@ -65,7 +65,26 @@ model = dict(
             conv_out_channels=64,
             num_classes=1,
             loss_mask=dict(
-                type='CrossEntropyLoss', use_mask=True, loss_weight=1.0))))
+                type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)),
+        text_roi_extractor=dict(
+            type='SingleRoIExtractor',
+            roi_layer=dict(type='RoIAlign', out_size=28, sample_num=0),
+            out_channels=256,
+            featmap_strides=[4, 8, 16, 32]),
+        text_head=dict(
+            type='TextRecognitionHeadAttention',
+            input_feature_size = [28, 28],
+            encoder_dim_input = 256,
+            encoder_dim_internal = 256,
+            encoder_num_layers = 3,
+            decoder_input_feature_size = [28, 28],
+            decoder_max_seq_len = 28,
+            decoder_vocab_size = 38,
+            decoder_dim_hidden = 256,
+            decoder_sos_index = 0,
+            decoder_rnn_type = "GRU",
+            visualize = False
+        )))
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
@@ -124,13 +143,13 @@ test_cfg = dict(
         mask_thr_binary=0.5),
     score_thr=0.005)
 
-dataset_type = 'CocoDataset'
+dataset_type = 'CocoWithTextDataset'
 data_root = '/media/ikrylov/datasets/text_spotting2/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
-    dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
+    dict(type='LoadAnnotations', with_bbox=True, with_mask=True, with_text=True),
     # dict(
     #     type='MinIoURandomCrop',
     #     min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
@@ -145,7 +164,7 @@ train_pipeline = [
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks']),
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_masks', 'gt_texts']),
 ]
 test_pipeline = [
     dict(type='LoadImageFromFile'),
@@ -170,7 +189,7 @@ data = dict(
         times=1,
         dataset=dict(
             type=dataset_type,
-            ann_file=data_root + 'train_gz.json',
+            ann_file=data_root + 'icdar2013_test.json',
             img_prefix=data_root,
             classes=('text', ),
             min_size=0,
