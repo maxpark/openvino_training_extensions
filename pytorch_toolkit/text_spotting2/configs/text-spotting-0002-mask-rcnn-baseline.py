@@ -159,7 +159,7 @@ train_pipeline = [
     #     img_scale=[(704, 704), (844, 704), (704, 844), (564, 704), (704, 564)],
     #     multiscale_mode='value',
     #     keep_ratio=False),
-    dict(type='Resize', img_scale=(704, 704), keep_ratio=False),
+    dict(type='Resize', img_scale=(1280, 764), keep_ratio=False),
     dict(type='RandomFlip', flip_ratio=0.0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -170,7 +170,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(704, 704),
+        img_scale=(1280, 764),
         flip=False,
         transforms=[
             dict(type='Resize', keep_ratio=False),
@@ -189,7 +189,7 @@ data = dict(
         times=1,
         dataset=dict(
             type=dataset_type,
-            ann_file=data_root + 'totaltext_test.json',
+            ann_file=data_root + 'dataset_train_wo_tests_ic13_ic15_tt.json',
             img_prefix=data_root,
             classes=('text', ),
             min_size=0,
@@ -197,13 +197,13 @@ data = dict(
         ),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'totaltext_test.json',
+        ann_file=data_root + 'icdar2015_test.json',
         img_prefix=data_root,
         classes=('text',),
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'totaltext_test.json',
+        ann_file=data_root + 'icdar2015_test.json',
         img_prefix=data_root,
         classes=('text',),
         pipeline=test_pipeline))
@@ -225,7 +225,7 @@ lr_config = dict(
     step=[14, 22])
 # yapf:disable
 log_config = dict(
-    interval=1,
+    interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')

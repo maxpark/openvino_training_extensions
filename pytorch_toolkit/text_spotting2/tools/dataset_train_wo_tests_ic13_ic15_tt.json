@@ -17,14 +17,6 @@
     }
   },
   {
-    "name": "ICDAR2015DatasetConverter",
-    "kwargs": {
-      "images_folder": "icdar2015/ch4_test_images",
-      "annotations_folder": "icdar2015/ch4_test_localization_transcription_gt",
-      "is_train": false
-    }
-  },
-  {
     "name": "ICDAR2017MLTDatasetConverter",
     "kwargs": {
       "folder": "icdar2017_mlt",
@@ -51,7 +43,10 @@
     "name": "ICDAR2019ARTDatasetConverter",
     "kwargs": {
       "folder": "icdar2019_art",
-      "is_latin_required": false
+      "is_latin_required": true,
+      "exclude_totaltext_test": true,
+      "totaltext_to_art_path": "/media/ikrylov/datasets/text_spotting2/icdar2019_art/Total_Text_ID_vs_ArT_ID.list",
+      "totaltext_test_images_dir": "/media/ikrylov/datasets/text_spotting2/totaltext/Images/Test"
     }
   },
   {

@@ -659,7 +659,8 @@ class ICDAR2019MLTDatasetConverter:
 
 class ICDAR2019ARTDatasetConverter:
 
-    def __init__(self, folder, is_latin_required=False, root=''):
+    def __init__(self, folder, is_latin_required=False, root='',
+                 exclude_totaltext_test=False, totaltext_to_art_path='', totaltext_test_images_dir=''):
         '''
         Converts ICDAR2019 ART to TextOnlyCocoAnnotation
         :param folder: Folder with extracted zip archives containing images
@@ -674,6 +675,18 @@ class ICDAR2019ARTDatasetConverter:
         assert os.path.exists(os.path.join(self.folder, 'train_images'))
         assert os.path.exists(os.path.join(self.folder, 'train_labels.json'))
 
+        self.exclude_art19_ids = set()
+
+        if exclude_totaltext_test:
+            assert totaltext_test_images_dir
+            assert totaltext_to_art_path
+
+            exclude_totaltext_ids = set(
+                imagename.split('.')[0][3:] for imagename in os.listdir(totaltext_test_images_dir)
+            )
+
+            with open(totaltext_to_art_path) as read_file:
+                self.exclude_art19_ids = set(x.split(' ')[1].split('.')[0] for x in read_file if x.split(' ')[0].split('.')[0][11:] in exclude_totaltext_ids)
     @staticmethod
     def parse_line(obj):
         """ Parses line of ICDAR2019ART annotation. """
@@ -718,6 +731,8 @@ class ICDAR2019ARTDatasetConverter:
             annotations = json.load(f)
             for image in annotations:
                 image_path = os.path.join(self.folder, 'train_images', img_format.format(image))
+                if image in self.exclude_art19_ids:
+                    continue
                 if not os.path.exists(image_path):
                     print(f'Could not find: {image_path[:-3]}*')
 
