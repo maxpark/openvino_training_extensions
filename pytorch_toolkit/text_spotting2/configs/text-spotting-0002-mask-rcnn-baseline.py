@@ -84,7 +84,8 @@ model = dict(
             decoder_sos_index = 0,
             decoder_rnn_type = "GRU",
             visualize = False
-        )))
+        ),
+        text_thr=0.5))
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
@@ -137,7 +138,7 @@ test_cfg = dict(
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
-        score_thr=0.05,
+        score_thr=0.5,
         nms=dict(type='nms', iou_thr=0.5),
         max_per_img=100,
         mask_thr_binary=0.5),
@@ -208,7 +209,7 @@ data = dict(
         classes=('text',),
         pipeline=test_pipeline))
 
-evaluation = dict(metric=['bbox', 'segm', 'f1@thr=0.5'])
+evaluation = dict(metric=['bbox', 'segm', 'f1', 'word_spotting'])
 # optimizer
 optimizer = dict(
     type='SGD',

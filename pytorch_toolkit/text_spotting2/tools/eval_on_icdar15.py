@@ -13,7 +13,7 @@ from pycocotools.mask import decode
 from tqdm import tqdm
 
 
-def convert_to_wider(config, input, out_folder, update_config):
+def convert_to_wider(config, input, out_folder, update_config, dump_empty):
     """ Main function. """
 
     if input is not None and not input.endswith(('.pkl', '.pickle')):
@@ -40,7 +40,7 @@ def convert_to_wider(config, input, out_folder, update_config):
         with open(os.path.join(folder, result['name']), 'w') as write_file:
 
             for box, segm, text in zip(result['boxes'], result['segms'], result['texts']):
-                if text:
+                if text or dump_empty:
                     text = text.upper()
                     mask = decode(segm)
                     contours = cv2.findContours(
@@ -53,7 +53,7 @@ def convert_to_wider(config, input, out_folder, update_config):
                         print('Used bbox')
                         xmin, ymin, xmax, ymax, conf = box
                         contour = [xmin, ymin, xmax, ymin, xmax, ymax, xmin, ymax]
-                    
+
                     res_str = ','.join([str(int(round(x))) for x in contour]) + f',{text}'
 
                     write_file.write(res_str + '\n')
@@ -85,27 +85,27 @@ if __name__ == '__main__':
     args = parse_args()
     mmdetection_test_py = '../../external/mmdetection/tools/test.py'
 
-
+    
     temp_dir = tempfile.mkdtemp()
     out_file = os.path.join(temp_dir, 'res.pkl')
     icdar15_output = os.path.join(temp_dir, 'icdar15')
-
+    
     run(f'python {mmdetection_test_py}'
         f' {args.config}'
         f' {args.snapshot}'
         f' --out {out_file}'
         f' --update_config data.test.ann_file={args.icdar15_ann} data.test.img_prefix={args.icdar15_root} test_cfg.rcnn.score_thr={args.text_det_thr} model.roi_head.text_thr={args.text_rec_thr}', shell=True)
-
-
+    
+    
     convert_to_wider(args.config, out_file, icdar15_output,
-                     {'data.test.ann_file': args.icdar15_ann, 'data.test.img_prefix': args.icdar15_root}
-                    )
+                     {'data.test.ann_file': args.icdar15_ann, 'data.test.img_prefix': args.icdar15_root},
+                    dump_empty=False)
     
     run(f'cd {icdar15_output}/ch4_test_images/; zip -q Test.zip *', shell=True)
-
+    
     print('text spotting metric')
     run(f'cd ../../../MaskTextSpotterV3/evaluation/icdar2015/e2e;'
-        f'python script.py --s {icdar15_output}/ch4_test_images/Test.zip', 
+        f'python script.py --s {icdar15_output}/ch4_test_images/Test.zip',
     shell=True)
 
     print('######################################################################')
@@ -122,13 +122,13 @@ if __name__ == '__main__':
         f' --update_config data.test.ann_file={args.icdar15_ann} data.test.img_prefix={args.icdar15_root} test_cfg.rcnn.score_thr={args.text_det_thr} model.roi_head.text_thr=-1.0', shell=True)
 
     convert_to_wider(args.config, out_file, icdar15_output,
-                     {'data.test.ann_file': args.icdar15_ann, 'data.test.img_prefix': args.icdar15_root}
-                    )
-    
+                     {'data.test.ann_file': args.icdar15_ann, 'data.test.img_prefix': args.icdar15_root},
+                    dump_empty=True)
+
     run(f'cd {icdar15_output}/ch4_test_images/; zip -q Test.zip *', shell=True)
 
     run(f'cd /home/ikrylov/Downloads/script_test_ch4_t1_e1-1577983151;'
-        f'python script.py -s={icdar15_output}/ch4_test_images/Test.zip -g=gt.zip', 
+        f'python script.py -s={icdar15_output}/ch4_test_images/Test.zip -g=gt.zip',
     shell=True)
 
     print(f'{icdar15_output}/ch4_test_images/Test.zip')
