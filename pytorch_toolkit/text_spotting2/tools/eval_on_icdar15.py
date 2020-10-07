@@ -73,6 +73,8 @@ def parse_args():
                     'evaluation procedure.')
     parser.add_argument('config', help='test config file path')
     parser.add_argument('snapshot', help='model weights')
+    parser.add_argument('--text_det_thr', type=float, default=0.5)
+    parser.add_argument('--text_rec_thr', type=float, default=0.5)
     parser.add_argument('--icdar15_ann', default='/media/ikrylov/datasets/text_spotting2/icdar2015_test.json')
     parser.add_argument('--icdar15_root', default='/media/ikrylov/datasets/text_spotting2')
     args = parser.parse_args()
@@ -82,6 +84,8 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     mmdetection_test_py = '../../external/mmdetection/tools/test.py'
+
+
     temp_dir = tempfile.mkdtemp()
     out_file = os.path.join(temp_dir, 'res.pkl')
     icdar15_output = os.path.join(temp_dir, 'icdar15')
@@ -90,18 +94,41 @@ if __name__ == '__main__':
         f' {args.config}'
         f' {args.snapshot}'
         f' --out {out_file}'
-        f' --update_config data.test.ann_file={args.icdar15_ann} data.test.img_prefix={args.icdar15_root}', shell=True)
+        f' --update_config data.test.ann_file={args.icdar15_ann} data.test.img_prefix={args.icdar15_root} test_cfg.rcnn.score_thr={args.text_det_thr} model.roi_head.text_thr={args.text_rec_thr}', shell=True)
 
 
     convert_to_wider(args.config, out_file, icdar15_output,
                      {'data.test.ann_file': args.icdar15_ann, 'data.test.img_prefix': args.icdar15_root}
                     )
     
-    run(f'cd {icdar15_output}/ch4_test_images/; zip Test.zip *', shell=True)
+    run(f'cd {icdar15_output}/ch4_test_images/; zip -q Test.zip *', shell=True)
 
-
+    print('text spotting metric')
     run(f'cd ../../../MaskTextSpotterV3/evaluation/icdar2015/e2e;'
         f'python script.py --s {icdar15_output}/ch4_test_images/Test.zip', 
+    shell=True)
+
+    print('######################################################################')
+
+    temp_dir = tempfile.mkdtemp()
+    out_file = os.path.join(temp_dir, 'res.pkl')
+    icdar15_output = os.path.join(temp_dir, 'icdar15')
+
+    print('text detection metric')
+    run(f'python {mmdetection_test_py}'
+        f' {args.config}'
+        f' {args.snapshot}'
+        f' --out {out_file}'
+        f' --update_config data.test.ann_file={args.icdar15_ann} data.test.img_prefix={args.icdar15_root} test_cfg.rcnn.score_thr={args.text_det_thr} model.roi_head.text_thr=-1.0', shell=True)
+
+    convert_to_wider(args.config, out_file, icdar15_output,
+                     {'data.test.ann_file': args.icdar15_ann, 'data.test.img_prefix': args.icdar15_root}
+                    )
+    
+    run(f'cd {icdar15_output}/ch4_test_images/; zip -q Test.zip *', shell=True)
+
+    run(f'cd /home/ikrylov/Downloads/script_test_ch4_t1_e1-1577983151;'
+        f'python script.py -s={icdar15_output}/ch4_test_images/Test.zip -g=gt.zip', 
     shell=True)
 
     print(f'{icdar15_output}/ch4_test_images/Test.zip')
