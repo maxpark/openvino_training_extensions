@@ -170,7 +170,10 @@ class TextOnlyCocoAnnotation:
                 assert 0 <= bbox[0] < bbox[0] + bbox[2] < image_size[0] and 0 <= bbox[1] < bbox[1] + bbox[3] < image_size[1], f'{image_path} {bbox}'
 
 
+
     def visualize(self, put_text, imshow_delay=1, shuffle=False):
+
+        max_text_len = 0
         """ Visualizes annotation using cv2.imshow from OpenCV. Press `Esc` to exit. """
 
         max_image_size = 1280, 768
@@ -193,6 +196,8 @@ class TextOnlyCocoAnnotation:
                 if put_text:
                     cv2.putText(image, obj['text']['transcription'], tuple(bbox[0:2]), 1, 1.0,
                                 color)
+                    max_text_len = max(max_text_len, len(obj['text']['transcription']))
+                    print(max_text_len)
                 cv2.rectangle(image, (bbox[0], bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]),
                               color, lwd)
 

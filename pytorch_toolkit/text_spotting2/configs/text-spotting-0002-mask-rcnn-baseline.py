@@ -79,7 +79,7 @@ model = dict(
             encoder_num_layers = 1,
             decoder_input_feature_size = [28, 28],
             decoder_max_seq_len = 28,
-            decoder_vocab_size = 64,
+            decoder_vocab_size = 38,
             decoder_dim_hidden = 64,
             decoder_sos_index = 0,
             decoder_rnn_type = "GRU",
@@ -141,7 +141,7 @@ test_cfg = dict(
         nms=dict(type='nms', iou_thr=0.5),
         max_per_img=100,
         mask_thr_binary=0.5),
-    score_thr=0.005)
+    score_thr=0.5)
 
 dataset_type = 'CocoWithTextDataset'
 data_root = '/media/ikrylov/datasets/text_spotting2/'
@@ -159,7 +159,7 @@ train_pipeline = [
     #     img_scale=[(704, 704), (844, 704), (704, 844), (564, 704), (704, 564)],
     #     multiscale_mode='value',
     #     keep_ratio=False),
-    dict(type='Resize', img_scale=(1280, 764), keep_ratio=False),
+    dict(type='Resize', img_scale=(960, 960), keep_ratio=False),
     dict(type='RandomFlip', flip_ratio=0.0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -170,7 +170,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(1280, 764),
+        img_scale=(960, 960),
         flip=False,
         transforms=[
             dict(type='Resize', keep_ratio=False),
@@ -189,7 +189,7 @@ data = dict(
         times=1,
         dataset=dict(
             type=dataset_type,
-            ann_file=data_root + 'dataset_train_wo_tests_ic13_ic15_tt.json',
+            ann_file=data_root + 'icdar2015_test.json',
             img_prefix=data_root,
             classes=('text', ),
             min_size=0,
@@ -208,7 +208,7 @@ data = dict(
         classes=('text',),
         pipeline=test_pipeline))
 
-evaluation = dict(metric=['bbox', 'segm', 'f1'])
+evaluation = dict(metric=['bbox', 'segm', 'f1@thr=0.5'])
 # optimizer
 optimizer = dict(
     type='SGD',
@@ -225,7 +225,7 @@ lr_config = dict(
     step=[14, 22])
 # yapf:disable
 log_config = dict(
-    interval=10,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')

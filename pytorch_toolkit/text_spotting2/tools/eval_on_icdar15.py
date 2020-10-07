@@ -40,27 +40,28 @@ def convert_to_wider(config, input, out_folder, update_config):
         with open(os.path.join(folder, result['name']), 'w') as write_file:
 
             for box, segm, text in zip(result['boxes'], result['segms'], result['texts']):
-                text = text.upper()
-                mask = decode(segm)
-                contours = cv2.findContours(
-                    mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
-                if contours:
-                    contour = sorted(
-                        contours, key=lambda x: -cv2.contourArea(x))[0]
-                    contour = cv2.boxPoints(cv2.minAreaRect(contour)).reshape(-1)
-                else:
-                    print('Used bbox')
-                    xmin, ymin, xmax, ymax, conf = box
-                    contour = [xmin, ymin, xmax, ymin, xmax, ymax, xmin, ymax]
-                
-                res_str = ','.join([str(int(round(x))) for x in contour]) + f',{text}'
+                if text:
+                    text = text.upper()
+                    mask = decode(segm)
+                    contours = cv2.findContours(
+                        mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]
+                    if contours:
+                        contour = sorted(
+                            contours, key=lambda x: -cv2.contourArea(x))[0]
+                        contour = cv2.boxPoints(cv2.minAreaRect(contour)).reshape(-1)
+                    else:
+                        print('Used bbox')
+                        xmin, ymin, xmax, ymax, conf = box
+                        contour = [xmin, ymin, xmax, ymin, xmax, ymax, xmin, ymax]
+                    
+                    res_str = ','.join([str(int(round(x))) for x in contour]) + f',{text}'
 
-                write_file.write(res_str + '\n')
-                # mask = np.zeros(mask.shape, dtype=np.uint8)
-                # mask = cv2.drawContours(mask, [contour], -1, 255, -1)
-                # write_file.write(res_str + '\n')
-                # cv2.imshow('mask', mask)
-                # cv2.waitKey(0)
+                    write_file.write(res_str + '\n')
+                    # mask = np.zeros(mask.shape, dtype=np.uint8)
+                    # mask = cv2.drawContours(mask, [contour], -1, 255, -1)
+                    # write_file.write(res_str + '\n')
+                    # cv2.imshow('mask', mask)
+                    # cv2.waitKey(0)
 
 
 def parse_args():
@@ -102,3 +103,5 @@ if __name__ == '__main__':
     run(f'cd ../../../MaskTextSpotterV3/evaluation/icdar2015/e2e;'
         f'python script.py --s {icdar15_output}/ch4_test_images/Test.zip', 
     shell=True)
+
+    print(f'{icdar15_output}/ch4_test_images/Test.zip')
