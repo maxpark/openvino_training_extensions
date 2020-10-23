@@ -34,6 +34,7 @@ def parse_args():
     args.add_argument('--visualize', action='store_true', help='Visualize annotation.')
     args.add_argument('--shuffle', action='store_true', help='Shuffle annotation before visualization.')
     args.add_argument('--delay', type=int, default=1)
+    args.add_argument('--remove-orientation-info', action='store_true')
     return args.parse_args()
 
 
@@ -54,7 +55,7 @@ def main():
             dataset['kwargs']['root'] = os.path.abspath(args.root)
         ann += str_to_class[dataset['name']](**dataset['kwargs'])()
 
-    ann.write(args.output)
+    ann.write(args.output, args.remove_orientation_info)
 
     ann = TextOnlyCocoAnnotation(args.output, os.path.dirname(args.output))
     if args.visualize:

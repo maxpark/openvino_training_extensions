@@ -99,10 +99,11 @@ class TextOnlyCocoAnnotation:
             y = 0
         if 0 <= x < x + w <= width and 0 <= y < y + h <= height:
             if adjusted:
-                logging.warn(f'Changed invalid box: from {box} to {x, y, w, h} because of image size {image_size}')
+                pass
+                #logging.warn(f'Changed invalid box: from {box} to {x, y, w, h} because of image size {image_size}')
             return x, y, w, h
         else:
-            logging.warn(f'Skip invalid box: {box} that can not be fit in {image_size}')
+            #logging.warn(f'Skip invalid box: {box} that can not be fit in {image_size}')
             return None
 
     def add_bbox(self, image_path, image_size, obj):
@@ -121,6 +122,7 @@ class TextOnlyCocoAnnotation:
         new_ann_id = len(self.annotation['annotations'])
         self.img_id_2_ann_id[self.img_path_2_img_id[image_path]].append(new_ann_id)
         bbox = self.fit_box_in_image(obj['bbox'], image_size)
+
         if bbox:
             self.annotation['annotations'].append({
                 "bbox": bbox,  # x, y, w, h
@@ -144,7 +146,7 @@ class TextOnlyCocoAnnotation:
                               copy.deepcopy(ann))
         return self
 
-    def write(self, path):
+    def write(self, path, remove_orientation_info=False):
         """ Writes annotation as json file. """
 
         annotation = copy.deepcopy(self.annotation)
@@ -152,6 +154,16 @@ class TextOnlyCocoAnnotation:
         for image_info in annotation['images']:
             image_info['file_name'] = os.path.relpath(image_info['file_name'],
                                                       os.path.dirname(path))
+
+        if remove_orientation_info:
+            for image_info in tqdm(annotation['images']):
+                image_info['file_name']
+                full_path = os.path.join(os.path.dirname(path), image_info['file_name'])
+                image = cv2.imread(full_path)
+                if image.shape[:2] != (image_info['height'], image_info['width']):
+                    image = cv2.imread(full_path, cv2.IMREAD_UNCHANGED)
+                    cv2.imwrite(full_path, image)
+                    print(image.shape[:2], (image_info['height'], image_info['width']), path)
 
         with open(path, 'w') as read_file:
             json.dump(annotation, read_file)
@@ -197,7 +209,7 @@ class TextOnlyCocoAnnotation:
                     cv2.putText(image, obj['text']['transcription'], tuple(bbox[0:2]), 1, 1.0,
                                 color)
                     max_text_len = max(max_text_len, len(obj['text']['transcription']))
-                    print(max_text_len)
+                    # print(max_text_len)
                 cv2.rectangle(image, (bbox[0], bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]),
                               color, lwd)
 
@@ -736,7 +748,7 @@ class ICDAR2019ARTDatasetConverter:
             annotations = json.load(f)
             for image in annotations:
                 image_path = os.path.join(self.folder, 'train_images', img_format.format(image))
-                if image in self.exclude_art19_ids:
+                if image in self.exclude_art19_ids or not image_path.endswith('gt_1491.jpg'):
                     continue
                 if not os.path.exists(image_path):
                     print(f'Could not find: {image_path[:-3]}*')
