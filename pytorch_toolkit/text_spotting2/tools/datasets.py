@@ -748,7 +748,7 @@ class ICDAR2019ARTDatasetConverter:
             annotations = json.load(f)
             for image in annotations:
                 image_path = os.path.join(self.folder, 'train_images', img_format.format(image))
-                if image in self.exclude_art19_ids or not image_path.endswith('gt_1491.jpg'):
+                if image in self.exclude_art19_ids:
                     continue
                 if not os.path.exists(image_path):
                     print(f'Could not find: {image_path[:-3]}*')
